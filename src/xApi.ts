@@ -8,6 +8,7 @@
 import { arrayBufferToBase64, requestUrl } from "obsidian";
 import { deferred } from "./deferred";
 import { oauth1Header, percentEncode, type OAuth1Credentials } from "./oauth1";
+import type { ArticleDraft } from "./article";
 
 export interface PostedTweet {
 	data: { id: string; text: string };
@@ -160,6 +161,22 @@ export class XApiClient {
 
 	async deleteTweet(id: string): Promise<void> {
 		await this.call("DELETE", `/2/tweets/${id}`);
+	}
+
+	/** Saves an Article draft (X Premium); resolves to the draft's id. */
+	async createArticleDraft(draft: ArticleDraft): Promise<string> {
+		const json = await this.call("POST", "/2/articles/draft", { body: draft });
+		const data = isRecord(json) ? json.data : undefined;
+		if (isRecord(data) && typeof data.id === "string") return data.id;
+		throw new Error("Unexpected response from /2/articles/draft.");
+	}
+
+	/** Publishes a draft Article; resolves to the id of the post that carries it. */
+	async publishArticle(articleId: string): Promise<string> {
+		const json = await this.call("POST", `/2/articles/${articleId}/publish`);
+		const data = isRecord(json) ? json.data : undefined;
+		if (isRecord(data) && typeof data.post_id === "string") return data.post_id;
+		throw new Error("Unexpected response from the Article publish endpoint.");
 	}
 
 	/** Uploads one image/GIF; resolves to the media id string for media_ids. */

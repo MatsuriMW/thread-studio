@@ -1,153 +1,123 @@
-## NoteTweet for Obsidian
-This plugin allows you to post to X (formerly Twitter) directly from Obsidian.
+# Thread Studio
 
-[![Release](https://img.shields.io/github/v/release/chhoumann/notetweet_obsidian?style=for-the-badge)]()
-[![Github All Releases](https://img.shields.io/github/downloads/chhoumann/notetweet_obsidian/total.svg?style=for-the-badge&logo=appveyor)]()
+Write X posts, threads, long posts, and Articles from your Obsidian notes, in a composer that shows you what the timeline will show.
 
-### Features
-- **Composer** (`Post tweet`) - a modal for writing single tweets or threads. It pre-fills from your current selection: a `THREAD START`/`THREAD END` block becomes a pre-split thread, and other text is auto-split for you.
-- **Post selection as tweet** - posts the current editor selection as a single tweet, immediately.
-- **Post file as thread** - parses the first `THREAD START`/`THREAD END` block in the active note and posts it as a thread.
-- **Multiple X accounts** - define named accounts, choose one in the composer, and set the default used by quick-post commands.
-- **Encrypted credentials** - your API keys are kept in Obsidian's built-in encrypted Secret Storage, not in the plugin's `data.json`.
-- **Auto-split** - long text is split into a thread at 280 characters (toggle in settings). Disabling it allows longer tweets, which require a paid X plan.
-- **Images** - attach images to a post in the composer: hover a post and click the image button to pick one from your vault, or just paste an image straight in (it's saved to your vault, then uploaded). You can also embed one by typing a `[[wikilink]]` to an image file (gif, jpg, jpeg, png, webp, bmp) in the text. Uploads are desktop only.
-- **Tweet tag** - optionally append a tag to your note after posting, so you can keep track of what you've tweeted.
-- **Delete/undo** - after posting, a modal lets you delete the tweets you just posted.
-- **Scheduling** (optional, advanced) - post on a schedule through a self-hosted scheduler. Follow [this guide](./GuideToSettingUpScheduler.md) to set it up.
+[简体中文](README.zh-CN.md)
 
-Feel free to recommend features!
+<p align="center">
+  <img src="assets/composer.png" width="49%" alt="The composer with a three-post thread">
+  <img src="assets/preview-long-post.png" width="49%" alt="Preview of an X Premium long post, folded after 280 characters">
+</p>
 
-![8jE9wvKuls](https://user-images.githubusercontent.com/29108628/109525702-16c97180-7ab2-11eb-8bc0-3c4bc79a6b7a.gif)
+Thread Studio is a fork of [NoteTweet](https://github.com/chhoumann/notetweet_obsidian) by Christian Bager Bach Houmann, published with his consent ([chhoumann/notetweet_obsidian#76](https://github.com/chhoumann/notetweet_obsidian/issues/76)). Everything NoteTweet does still works; Thread Studio adds:
 
-## How to use
-### Installation
-This plugin has been added to the community plugin browser in Obsidian. You can get it from there.
+- **Write / Preview.** Preview lays the thread out the way X does: avatar, name, the thread line, image grids, and links, hashtags, and mentions in color.
+- **Post current block.** Put the cursor in a list item or paragraph and run the command, click the paper plane in the ribbon, or right-click. The item and its children open in the composer, embedded images attached. Task keywords (`TODO`, `DOING`, …), wikilink brackets, emphasis marks, and `%%comments%%` are cleaned up. Once posted, the tweet tag goes on that block's first line.
+- **X Premium long posts.** Turn on *X Premium long posts* and a single post can hold up to 25,000 characters instead of being split into a thread. The count shows the post's length past 280, and Preview folds it with *Show more* where X will.
+- **X Articles.** *Post note as X Article* turns the active note into an Article: headings, lists, quotes, bold, italic, strikethrough, links, images, code blocks, tables, and dividers carry over. Publish it at once, or save a draft and finish it in X's editor.
+- **A composer with some life in it.** A count ring that fills like X's, cards that slide into place when you add, move, split, or delete posts, icons that move when you point at them, and short, quiet sounds you can switch off. Reduced-motion settings are respected.
 
-If you want to watch a video on how to set up this plugin, click [here](https://www.youtube.com/watch?v=jx09b1Ien3Q).
+## Installation
 
-#### Manual Installation
-*Please note that these steps are not necessary anymore. You can get the plugin from the community plugin browser. Just install from there and jump to Setup.*
+Until Thread Studio is listed in the Obsidian community plugin directory:
 
-1. Go to [Releases](https://github.com/chhoumann/notetweet_obsidian/releases) and download the ZIP file from the latest release.
-2. This ZIP file should be extracted in your Obsidian plugins folder. If you don't know where that is, you can go to `Community Plugins` inside Obsidian. There is a folder icon on the right of `Installed Plugins`. Click that and it opens your plugins folder.
-3. Extract the contents of the ZIP file there.
-4. Proceed to Setup
+- **With BRAT:** install [BRAT](https://github.com/TfTHacker/obsidian42-brat), run *BRAT: Add a beta plugin for testing*, and enter `MatsuriMW/thread-studio`.
+- **By hand:** download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/MatsuriMW/thread-studio/releases/latest) into `<your vault>/.obsidian/plugins/thread-studio/`, then enable Thread Studio under *Settings → Community plugins*.
 
-#### Setup
-1. Go to [developer.x.com](https://developer.x.com) and sign up for a developer account if you haven't already.
-2. Create a new App in the [Developer Portal](https://developer.x.com/en/portal/dashboard). New apps created at developer.x.com are automatically placed inside a Project, which is **required** for the X API v2. (A legacy, non-Project app causes a 403 `Client Forbidden` with reason `client-not-enrolled` - see Troubleshooting.)
-3. On app creation you're shown the **API Key**, the **API Key Secret**, and a Bearer Token. Copy the API Key and API Key Secret - the portal names these differently than the plugin's fields:
-   - **API Key** = your Consumer Key
-   - **API Key Secret** (some UIs call it **Secret Key**) = your Consumer Secret
-   - The **Access Token** and **Access Token Secret** are **not** shown here - you generate them in the next step.
-4. Enable posting and generate the user tokens (this is the extra step people miss):
-   - In the app's **Settings** tab, open **User authentication settings** and click **Edit**.
-   - Enable **OAuth 1.0a**, set **App permissions** to **Read and write**, then **Save**.
-   - To save, X also requires a **Callback URI / Redirect URL**, a **Website URL**, and a **Type of App**. The plugin uses OAuth 1.0a with the Access Token below and never uses the callback redirect, so any valid values work: put `https://github.com/chhoumann/notetweet_obsidian` in both URL fields and pick **Web App, Automated App or Bot** for the type.
-   - Open the **Keys and tokens** tab, find **Access Token and Secret**, and click **Generate**. This gives you the **Access Token** and **Access Token Secret**.
-   - If you change App permissions *after* generating the Access Token, regenerate the Access Token - otherwise it stays read-only.
-5. In NoteTweet settings, add a named X account and paste all four values - **API Key**, **API Key Secret**, **Access Token**, and **Access Token Secret** - into that account. They are stored in Obsidian's encrypted Secret Storage (see 'Credentials & security' below). Repeat this setup for each X account you want to post from.
+Thread Studio needs Obsidian 1.13.0 or newer, for its encrypted Secret Storage. It can be installed next to NoteTweet: the two keep separate settings and separate credentials.
 
-**Important Notes:**
-- Credentials are shown only once in the developer portal - if you lose them, regenerate new ones.
-- Ensure your App has **Read and write** permissions, not just Read, and regenerate the Access Token after changing permissions.
-- Your App must be attached to a Project (required for X API v2). New apps are enrolled automatically; legacy apps must be attached manually.
+## Setup
 
-Each account has its own connection test, which shows the exact reason X returned when verification fails (for example the `client-not-enrolled` message).
+You post through your own X developer app, so you need four keys from the X Developer Portal.
 
-### Credentials & security
-Account names, IDs, and the default account are stored in the plugin's `data.json`. Every account's API key, API secret, access token, and access token secret are kept separately in Obsidian's built-in encrypted Secret Storage (`app.secretStorage`). Because Secret Storage is used, this plugin requires **Obsidian 1.13.0 or newer**.
+1. Sign in at [developer.x.com](https://developer.x.com) and create an App in the [Developer Portal](https://developer.x.com/en/portal/dashboard). New apps are placed inside a Project, which the X API v2 requires.
+2. Copy the **API Key** (the Consumer Key) and the **API Key Secret** (the Consumer Secret) shown when the app is created.
+3. Let the app post:
+   - In the app's **Settings**, open **User authentication settings** → **Edit**.
+   - Enable **OAuth 1.0a** and set **App permissions** to **Read and write**.
+   - X also asks for a **Callback URI**, a **Website URL**, and a **Type of App**. Thread Studio never uses the callback, so `https://github.com/MatsuriMW/thread-studio` in both URL fields and **Web App, Automated App or Bot** work fine. Save.
+   - Under **Keys and tokens → Access Token and Secret**, click **Generate** to get the **Access Token** and **Access Token Secret**. If you change permissions later, generate them again, or the token stays read-only.
+4. In Thread Studio's settings, click **Add account**, name it, and paste all four values. Use **Test** to check the connection. Repeat for each account you post from.
 
-**Migrating from an older version.** Credentials already held in NoteTweet's four fixed Secret Storage entries are moved automatically into a named **Default** account. If you're upgrading from a version that stored credentials in `data.json`, the settings tab instead shows a **Migrate credentials** section with a **Migrate now** button. If you previously enabled the old password-based Secure Mode, the button first prompts for that password so it can decrypt the values. Both paths preserve all four X credentials and remove the old credential path after migration.
+## Usage
 
-## Composer
-Run the `Post tweet` command to open the composer, where you can choose a named X account and craft threads or single tweets. The configured default account is selected initially. If you have text selected, it is ported into the composer automatically: a `THREAD START`/`THREAD END` block opens as a pre-split thread, and any other text is auto-split into tweets when it exceeds 280 characters. You can also paste text in, and anything longer than 280 characters is split for you. The composer has a **Post** button, and a **Schedule** button when scheduling is enabled.
+### Composer
 
-### Composer Shortcuts
-- `Backspace` to delete an empty post
-- `Alt + Enter` (or `Enter` at the character limit) to start a new post
-- Three line breaks in a row also start a new post
-- `Shift + Enter` to insert a post above
-- `Ctrl + Enter` to insert a post below
-- `Ctrl + ArrowUp` / `Ctrl + ArrowDown` to focus the post above / below
-- `Ctrl + Shift + ArrowUp` / `Ctrl + Shift + ArrowDown` to move the current post up / down
-- `Ctrl + Shift + Delete` to delete the focused post
+Run **Post tweet** to open the composer. If text is selected, it comes along: a `THREAD START` / `THREAD END` block opens as a ready-made thread, and other text is split into posts at the length limit. Pasting long text splits it too. Pick the account at the top, switch between **Write** and **Preview**, and press **Post** (or **Schedule**, when scheduling is on).
 
-## Quick posts
-Single tweets are simple. Select some text and run the `Post selection as tweet` command to post it immediately through the default account configured in NoteTweet settings.
+Shortcuts inside a post:
 
-To post a thread straight from a note, run the `Post file as thread` command. It detects the first `THREAD START`/`THREAD END` block in the active note and posts it through the same default account.
+- `Alt + Enter`, `Enter` at the length limit, or three line breaks in a row: start a new post
+- `Shift + Enter` / `Ctrl + Enter`: insert a post above / below
+- `Ctrl + ↑` / `Ctrl + ↓`: go to the post above / below
+- `Ctrl + Shift + ↑` / `Ctrl + Shift + ↓`: move the post up / down
+- `Backspace` in an empty post, or `Ctrl + Shift + Delete`: delete the post
 
-**Threads** have a specific format. Only the first thread block in a file is detected.
+Images: hover a post and click the image button to pick one from your vault, paste an image straight in (it is saved to your vault, then uploaded), or type a `[[wikilink]]` to an image (gif, jpg, jpeg, png, webp, bmp). Up to four per post.
 
-Format:
+### Post current block
+
+Run **Post current block** from the command palette, the ribbon, or the editor's right-click menu. In a list, the block is the item under the cursor with all of its children; elsewhere it is the paragraph. Child items keep a plain `-` or `1.` marker so the structure survives on X.
+
+### X Premium long posts
+
+If your accounts have X Premium, turn on **X Premium long posts** in settings. A post may then hold up to 25,000 characters; *Auto-split tweets* splits only past that limit. X shows the first 280 characters of a long post with *Show more*, and Preview folds it at the same place. Without Premium, X rejects posts longer than 280 characters, and Thread Studio shows X's reason.
+
+### X Articles
+
+Open a note and run **Post note as X Article**. Confirm the title and the account, then choose **Publish**, or **Save draft** to finish it in X's Articles editor (the notice links straight to the draft).
+
+- **Title:** the note's `title` property; else a `# Heading` on the note's first line (it is then left out of the body); else the file name.
+- **Cover:** an image in the note's `cover` property, such as `cover: "[[header.png]]"`.
+- **Body:** `#`, `##`, and `###`+ become X's three heading levels; lists, quotes (callout markers removed), bold, italic, and strikethrough carry over; `==highlights==` become bold; links become links and wikilinks become plain text; images from your vault are uploaded; fenced code blocks and tables go in as Markdown blocks; `---` becomes a divider. Nested lists are flattened, because Articles have no list depth. Frontmatter, `%%comments%%`, and block ids are left out.
+
+Articles need X Premium on the posting account.
+
+### Quick posts
+
+- **Post selection as tweet** posts the selected text at once, through the default account.
+- **Post file as thread** posts the first `THREAD START` / `THREAD END` block in the active note, through the default account:
+
 ```
 THREAD START
 
-Here you can type the first tweet in your thread.
-
-Spacing is fine.
+The first post.
 
 ---
-Separation between tweets is done using a line containing only three dashes - just like you see above.
-
----
-Enjoy!
+The second post. A line with only three dashes separates posts.
 
 THREAD END
 ```
 
-Threads must start with `THREAD START` and end with `THREAD END`, and individual tweets are separated by a line containing only `---`.
+After posting, a dialog links to each post and lets you delete them again. If a **Tweet tag** is set, it is added to your note.
 
-## Scheduling Posts
-Scheduling is optional and advanced. The self-hosted scheduler owns its own X credentials and therefore its own posting identity. Choosing an account in NoteTweet affects immediate posting only - a scheduled post is always sent by the account configured on the scheduler server. Follow [this guide](./GuideToSettingUpScheduler.md) to set it up.
+### Scheduling
+
+Optional and advanced: posts can go out later through a self-hosted scheduler, which posts with its own X credentials. See [the scheduler guide](GuideToSettingUpScheduler.md).
+
+## Network use and accounts
+
+- Thread Studio talks to the X API (`https://api.x.com`) only when you post, schedule, upload images, delete posts you just made, or test an account. It sends the text and images you choose to post. There is no analytics or telemetry.
+- It needs your own X developer app and its four keys (see Setup). Depending on your X developer plan, X may bill API use. Long posts and Articles need an X Premium subscription.
+- If you turn on scheduling, posts and your scheduler password go to the scheduler URL you enter.
+- Credentials are kept in Obsidian's encrypted Secret Storage, never in the plugin's `data.json`. Thread Studio reads image files from your vault to upload them and writes the tweet tag into your notes; it touches nothing outside your vault.
 
 ## Troubleshooting
 
-### Not connected - 403 `Client Forbidden` (`client-not-enrolled`)
-This is the most common setup failure. It means the app your credentials come from is **not attached to a Project**, so it isn't enrolled to use the X API v2 write endpoints. The plugin surfaces this exact reason in the connection status.
+**Not connected: 403 `Client Forbidden` (`client-not-enrolled`).** The app is not attached to a Project. Create a fresh app (new apps are enrolled automatically) or attach yours to a Project, regenerate the Access Token and Secret, and paste the new values in.
 
-To fix it:
-1. In the [Developer Portal](https://developer.x.com/en/portal/dashboard), either create a **fresh app** (new apps are automatically enrolled in a Project) or attach your existing app to a Project.
-2. Regenerate your **Access Token and Secret** (Keys and tokens -> Access Token and Secret -> Generate), since the tokens are tied to the app.
-3. Paste the updated credentials into the plugin settings and re-check the connection indicator.
+**Connected, but posting fails with 403.** The connection test only reads, so it passes even when the app cannot write. Usually the Access Token is read-only: set **Read and write**, then regenerate the Access Token and Secret. Other causes: your plan's write limit is used up, or X rejects a duplicate post. The error notice shows X's own reason.
 
-### Posting fails with 403 even though you're connected
-The connection indicator uses a *read* call, so it stays green even when your app can't *write*. A 403 when you hit **Post** almost always means one of:
-- **Your Access Token is read-only.** If the app was Read-only when the token was generated (or you switched to **Read and write** afterwards without regenerating), the token can read but not post. Set **App permissions = Read and write**, then **regenerate the Access Token and Secret** and paste the new ones in - this is the fix in the large majority of cases.
-- **You hit the free tier's monthly write cap.** X returns a 403 (`UsageCapExceeded`) once you exceed it; wait for the reset or raise your access tier.
-- **Duplicate content.** X rejects an identical post; change the text.
+**A long post or an Article fails with 403.** The posting account has no X Premium, or X has not enabled the feature for it yet.
 
-The failure notice shows X's own reason, and the full payload is logged to the developer console (`Post request failed: code=… data=…`) so you can tell these apart.
+**401 authentication errors.** Check that the app is in a Project and has Read and write permission, that your computer's clock is right, and regenerate the tokens.
 
-### Authentication Error (401)
-If you're seeing "TypeError: Cannot read properties of undefined (reading 'data')" or authentication errors even though the plugin shows as "connected":
+**An image does not upload.** Use gif, jpg, jpeg, png, webp, or bmp, and make sure the file is in your vault.
 
-1. **Verify your X app is attached to a Project**
-   - Go to [developer.x.com](https://developer.x.com)
-   - Navigate to your app settings
-   - Ensure your app is attached to a Project (required for X API v2)
+## Credits
 
-2. **Check your system clock**
-   - Authentication can fail if your system time is incorrect
-   - Ensure your computer's clock is synchronized
+Thread Studio stands on [NoteTweet](https://github.com/chhoumann/notetweet_obsidian) by [Christian Bager Bach Houmann](https://bagerbach.com/), who wrote the composer, the X API client, Secret Storage handling, and the scheduler, and kindly agreed to this fork. Icons are [Lucide](https://lucide.dev) (ISC), animated in the spirit of [lucide-animated](https://github.com/pqoqubbw/icons); the Preview follows X's own composer and [Typefully](https://typefully.com)'s preview pane.
 
-3. **Regenerate your access tokens**
-   - In the X Developer Portal, regenerate your Access Token & Secret
-   - Update the plugin settings with the new tokens
+## License
 
-4. **Verify app permissions**
-   - Your X app must have "Read and Write" permissions
-   - If you recently changed permissions, regenerate your tokens
-
-5. **Check for token expiration**
-   - X API tokens can expire after extended periods of non-use
-   - Simply regenerating them often resolves this issue
-
-6. **Check your access tier and usage limits**
-   - The free tier can post (write), so it works for most use cases. (Basic is a separate paid tier - you don't need it just to post.)
-   - Check your usage limits in the developer portal if you're hitting rate limits
-
-### Common Issues
-- **Media upload failures**: Ensure your image files are in a supported format (gif, jpg, jpeg, png, webp, bmp) and accessible in your vault.
+[MIT](LICENSE), keeping the original NoteTweet copyright.

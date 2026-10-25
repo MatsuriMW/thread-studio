@@ -1,4 +1,5 @@
 import type { App } from "obsidian";
+import type { ArticleDraft, ArticleMedia } from "./article";
 import { log } from "./log";
 import { hasCompleteCredentials, type TwitterCredentials } from "./secrets";
 import {
@@ -28,7 +29,13 @@ export class ThreadPostError extends Error {
 		readonly posted: PostedTweet[],
 		error: unknown,
 	) {
-		super(error instanceof Error ? error.message : String(error));
+		super(
+			error instanceof Error
+				? error.message
+				: typeof error === "string"
+					? error
+					: "Unknown error",
+		);
 	}
 }
 
@@ -108,6 +115,46 @@ export class TwitterClient {
 	async postTweet(text: string): Promise<PostedTweet> {
 		const client = this.requireClient();
 		return client.createTweet(await this.buildTweet(text));
+	}
+
+	/**
+	 * Upload an image linked from `sourcePath` for an Article. Warns and
+	 * resolves `null` when the file is missing or the upload fails, so one bad
+	 * image does not sink the whole Article.
+	 */
+	async uploadArticleImage(link: string, sourcePath: string): Promise<ArticleMedia | null> {
+		const client = this.requireClient();
+		const file = this.app.metadataCache.getFirstLinkpathDest(link, sourcePath);
+		const mimeType = file && MIME_BY_EXTENSION[file.extension.toLowerCase()];
+		if (!file || !mimeType) {
+			log.warning(`Could not find image '${link}' in the vault.`);
+			return null;
+		}
+		try {
+			const mediaId = await client.uploadMedia(await this.app.vault.readBinary(file), mimeType);
+			return {
+				media_id: mediaId,
+				media_category: mimeType === "image/gif" ? "tweet_gif" : "tweet_image",
+			};
+		} catch (error) {
+			const reason = error instanceof Error ? error.message : "upload failed";
+			log.warning(`Could not upload image '${link}': ${reason}`);
+			return null;
+		}
+	}
+
+	/**
+	 * Save an Article draft, and publish it unless `draftOnly`. Resolves to the
+	 * draft id and, once published, the id of the post that carries it.
+	 */
+	async postArticle(
+		draft: ArticleDraft,
+		draftOnly: boolean,
+	): Promise<{ articleId: string; postId: string | null }> {
+		const client = this.requireClient();
+		const articleId = await client.createArticleDraft(draft);
+		if (draftOnly) return { articleId, postId: null };
+		return { articleId, postId: await client.publishArticle(articleId) };
 	}
 
 	async deleteTweets(tweets: { id: string }[]): Promise<boolean> {

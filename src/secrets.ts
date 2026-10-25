@@ -2,27 +2,29 @@ import type { App } from "obsidian";
 
 /**
  * Stable SecretStorage keys owned by this plugin. Obsidian requires secret ids
- * to be lowercase alphanumeric with optional dashes.
+ * to be lowercase alphanumeric with optional dashes. Thread Studio keeps
+ * NoteTweet's migration code, but every id carries its own prefix so it never
+ * reads or clears the secrets of a NoteTweet install in the same vault.
  */
 export const LEGACY_TWITTER_SECRET_IDS = {
-	apiKey: "notetweet-api-key",
-	apiSecret: "notetweet-api-secret",
-	accessToken: "notetweet-access-token",
-	accessTokenSecret: "notetweet-access-token-secret",
+	apiKey: "thread-studio-api-key",
+	apiSecret: "thread-studio-api-secret",
+	accessToken: "thread-studio-access-token",
+	accessTokenSecret: "thread-studio-access-token-secret",
 } as const;
 
 /** NoteTweet 0.7.0 kept every vault's scheduler password under this one id. */
-export const LEGACY_SCHEDULER_PASSWORD_ID = "notetweet-scheduler-password";
+export const LEGACY_SCHEDULER_PASSWORD_ID = "thread-studio-scheduler-password";
 
 /** This vault's scheduler password. Secret storage is shared by all vaults. */
 export function schedulerPasswordSecretId(passwordKey: string): string {
-	return `notetweet-scheduler-${passwordKey}-password`;
+	return `thread-studio-scheduler-${passwordKey}-password`;
 }
 
 export type SecretId = string;
 
 const SECRET_ID_MAX_LENGTH = 64;
-const ACCOUNT_SECRET_PREFIX = "notetweet-account";
+const ACCOUNT_SECRET_PREFIX = "thread-studio-x";
 
 const ACCOUNT_SECRET_SUFFIX = {
 	apiKey: "api-key",

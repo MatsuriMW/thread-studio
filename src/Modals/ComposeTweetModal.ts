@@ -3,7 +3,6 @@ import {
 	FuzzySuggestModal,
 	Modal,
 	type TFile,
-	setIcon,
 } from "obsidian";
 import { deferred } from "../deferred";
 import { log } from "../log";
@@ -15,12 +14,26 @@ import {
 import { promptForDateTime } from "./DateTimePromptModal";
 import { analyzeTweetText } from "../textAnalysis";
 import type { XAccount } from "../settings";
+import {
+	EASE,
+	ENTER,
+	SHAKE,
+	SPRING,
+	type IconName,
+	icon,
+	motionAllowed,
+	playSound,
+} from "../fx";
 
 export interface ComposeOptions {
 	/** Pre-filled thread, one entry per post (edit / thread-from-selection). */
 	initialContent?: string[];
 	/** Raw text to seed the first post, auto-split when enabled. */
 	initialText?: string;
+	/** Images attached to the first post when the composer opens. */
+	initialAttachments?: TFile[];
+	/** Weighted length limit per post. Defaults to 280; X Premium allows 25,000. */
+	maxLength?: number;
 	/** Show the "Schedule" button alongside the primary action. */
 	allowSchedule?: boolean;
 	/** Primary button label. Defaults to "Post". */
@@ -43,8 +56,8 @@ const COUNTDOWN_FROM = 30;
 /** A run of this many newlines is the "start a new post" gesture. */
 const BREAK_RUN = "\n\n\n";
 /** Twitter accepts at most four images per post. */
-const MAX_MEDIA = 4;
-const IMAGE_EXTENSIONS: Record<string, true> = {
+export const MAX_MEDIA = 4;
+export const IMAGE_EXTENSIONS: Record<string, true> = {
 	gif: true,
 	jpg: true,
 	jpeg: true,
@@ -82,8 +95,11 @@ interface PostRow {
 	card: HTMLElement;
 	textarea: HTMLTextAreaElement;
 	count: HTMLElement;
+	countNum: HTMLElement;
 	attachEl: HTMLElement;
 	attachments: TFile[];
+	/** Attachments already on screen, so only new chips pop in. */
+	shownAttachments: TFile[];
 	moveUp: HTMLButtonElement;
 	moveDown: HTMLButtonElement;
 	remove: HTMLButtonElement;
@@ -123,9 +139,16 @@ class ImagePickerModal extends FuzzySuggestModal<TFile> {
 export class ComposeTweetModal extends Modal {
 	private readonly rows: PostRow[] = [];
 	private thread!: HTMLElement;
+	private previewEl!: HTMLElement;
+	private modeButtons: HTMLButtonElement[] = [];
+	private previewing = false;
+	private addEl!: HTMLElement;
+	private footerEl!: HTMLElement;
 	private statusEl!: HTMLElement;
 	private postButton!: HTMLButtonElement;
+	private postLabel!: HTMLElement;
 	private scheduleButton: HTMLButtonElement | null = null;
+	private scheduleLabel: HTMLElement | null = null;
 	private selectedAccountId = "";
 	private submitted = false;
 	private sending: "post" | "schedule" | null = null;
@@ -152,6 +175,10 @@ export class ComposeTweetModal extends Modal {
 		return this.options.autoSplit ?? true;
 	}
 
+	private get limit(): number {
+		return this.options.maxLength ?? MAX_TWEET_LENGTH;
+	}
+
 	private buildAccountPicker(root: HTMLElement): void {
 		const accounts = this.options.accounts ?? [];
 		if (this.options.submitLabel === "Update") return;
@@ -172,6 +199,13 @@ export class ComposeTweetModal extends Modal {
 			? this.options.selectedAccountId
 			: accounts[0].id;
 		this.selectedAccountId = selected ?? "";
+		const avatar = picker.createSpan({
+			cls: "nt-avatar",
+			attr: { "aria-hidden": "true" },
+		});
+		const paintAvatar = () =>
+			avatar.setText(this.accountName("?").charAt(0).toUpperCase());
+		paintAvatar();
 		const select = picker.createEl("select", {
 			cls: "nt-account-select dropdown",
 			attr: { id: "nt-account", "aria-label": "X account" },
@@ -182,8 +216,22 @@ export class ComposeTweetModal extends Modal {
 		select.value = this.selectedAccountId;
 		select.addEventListener("change", () => {
 			this.selectedAccountId = select.value;
+			paintAvatar();
+			if (motionAllowed()) {
+				avatar.animate(
+					[{ transform: "scale(0.6)", opacity: 0.4 }, { transform: "none", opacity: 1 }],
+					{ duration: 320, easing: SPRING },
+				);
+			}
 			this.refreshState();
 		});
+	}
+
+	private accountName(fallback: string): string {
+		return (
+			(this.options.accounts ?? []).find(({ id }) => id === this.selectedAccountId)
+				?.name ?? fallback
+		);
 	}
 
 	onOpen(): void {
@@ -194,9 +242,12 @@ export class ComposeTweetModal extends Modal {
 				? "Edit scheduled post"
 				: "Compose post",
 		);
-		this.buildAccountPicker(this.contentEl);
+		const head = this.contentEl.createDiv({ cls: "nt-head" });
+		this.buildAccountPicker(head);
+		this.buildModeSwitch(head);
 
 		this.thread = this.contentEl.createDiv({ cls: "nt-thread" });
+		this.previewEl = this.contentEl.createDiv({ cls: "nt-preview" });
 
 		try {
 			this.seedContent();
@@ -209,6 +260,71 @@ export class ComposeTweetModal extends Modal {
 		this.buildAddButton(this.contentEl);
 		this.buildFooter(this.contentEl);
 		this.refreshState();
+		if (motionAllowed()) {
+			this.rows.forEach((row, index) =>
+				row.el.animate(ENTER, {
+					duration: 320,
+					easing: EASE,
+					delay: 40 + Math.min(index, 6) * 45,
+					fill: "backwards",
+				}),
+			);
+		}
+	}
+
+	/**
+	 * Measure, change the layout, then play moved posts, the add button, and the
+	 * footer back from where they were. New posts fade in. Only transforms
+	 * animate, so the modal never reflows mid-animation.
+	 */
+	private flip<T>(mutate: () => T): T {
+		const els = () => [...this.rows.map((row) => row.el), this.addEl, this.footerEl];
+		const before = new Map(els().map((el) => [el, el.getBoundingClientRect()]));
+		const result = mutate();
+		if (!motionAllowed()) return result;
+		for (const el of els()) {
+			const was = before.get(el);
+			if (!was) {
+				el.animate(ENTER, { duration: 300, easing: EASE });
+				continue;
+			}
+			const now = el.getBoundingClientRect();
+			const dx = was.left - now.left;
+			const dy = was.top - now.top;
+			if (Math.abs(dx) + Math.abs(dy) < 0.5) continue;
+			el.animate(
+				[{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }],
+				{ duration: 340, easing: EASE },
+			);
+		}
+		return result;
+	}
+
+	/** Leave a copy of a deleted post in place and fade it out. */
+	private ghost(row: PostRow): void {
+		if (!motionAllowed()) return;
+		const at = row.el.getBoundingClientRect();
+		const base = this.thread.getBoundingClientRect();
+		const ghost = row.el.cloneNode(true) as HTMLElement;
+		const textarea = ghost.querySelector("textarea");
+		if (textarea) textarea.value = row.textarea.value;
+		ghost.addClass("nt-ghost");
+		ghost.setCssStyles({
+			top: `${at.top - base.top}px`,
+			left: `${at.left - base.left}px`,
+			width: `${at.width}px`,
+		});
+		this.thread.appendChild(ghost);
+		const remove = () => ghost.remove();
+		ghost
+			.animate(
+				[
+					{ opacity: 1, transform: "none" },
+					{ opacity: 0, transform: "translateX(-12px) scale(0.96)" },
+				],
+				{ duration: 220, easing: "ease-in", fill: "forwards" },
+			)
+			.finished.then(remove, remove);
 	}
 
 	private seedContent(): void {
@@ -218,9 +334,13 @@ export class ComposeTweetModal extends Modal {
 			this.fillPosts(this.options.initialContent, first);
 		} else if (this.options.initialText) {
 			const chunks = this.autoSplit
-				? splitIntoTweets(this.options.initialText)
+				? splitIntoTweets(this.options.initialText, this.limit)
 				: [this.options.initialText];
 			this.fillPosts(chunks, first);
+		}
+		if (this.options.initialAttachments?.length) {
+			first.attachments = [...this.options.initialAttachments];
+			this.renderAttachments(first);
 		}
 
 		this.rows[0]?.textarea.focus();
@@ -250,6 +370,8 @@ export class ComposeTweetModal extends Modal {
 		});
 		textarea.value = value;
 		const count = editor.createDiv({ cls: "nt-count" });
+		const countNum = count.createSpan({ cls: "nt-count-num" });
+		count.createSpan({ cls: "nt-ring" });
 
 		const attachEl = card.createDiv({ cls: "nt-attachments" });
 
@@ -257,7 +379,7 @@ export class ComposeTweetModal extends Modal {
 		const attach = this.iconButton(controls, "image", "Attach image");
 		const moveUp = this.iconButton(controls, "arrow-up", "Move up");
 		const moveDown = this.iconButton(controls, "arrow-down", "Move down");
-		const remove = this.iconButton(controls, "trash-2", "Delete post", true);
+		const remove = this.iconButton(controls, "trash", "Delete post", true);
 
 		const row: PostRow = {
 			el,
@@ -265,8 +387,10 @@ export class ComposeTweetModal extends Modal {
 			card,
 			textarea,
 			count,
+			countNum,
 			attachEl,
 			attachments: [],
+			shownAttachments: [],
 			moveUp,
 			moveDown,
 			remove,
@@ -301,7 +425,7 @@ export class ComposeTweetModal extends Modal {
 
 	private iconButton(
 		parent: HTMLElement,
-		icon: string,
+		name: IconName,
 		label: string,
 		danger = false,
 	): HTMLButtonElement {
@@ -309,8 +433,125 @@ export class ComposeTweetModal extends Modal {
 			cls: danger ? "nt-icon-btn nt-danger" : "nt-icon-btn",
 			attr: { type: "button", "aria-label": label, title: label },
 		});
-		setIcon(button, icon);
+		icon(button, name);
 		return button;
+	}
+
+	/** Write / Preview tabs. Preview lays the thread out the way X shows it. */
+	private buildModeSwitch(root: HTMLElement): void {
+		const tabs = root.createDiv({ cls: "nt-mode", attr: { role: "tablist" } });
+		tabs.createSpan({ cls: "nt-mode-pill" });
+		const make = (label: string, preview: boolean) => {
+			const button = tabs.createEl("button", {
+				cls: "nt-mode-btn",
+				text: label,
+				attr: { type: "button", role: "tab" },
+			});
+			button.addEventListener("click", () => this.setPreview(preview));
+			return button;
+		};
+		this.modeButtons = [make("Write", false), make("Preview", true)];
+		this.modeButtons[0].addClass("is-on");
+	}
+
+	private setPreview(on: boolean): void {
+		if (this.previewing === on) return;
+		this.previewing = on;
+		playSound("mode");
+		this.contentEl.toggleClass("is-preview", on);
+		this.modeButtons.forEach((button, index) =>
+			button.toggleClass("is-on", index === (on ? 1 : 0)),
+		);
+		if (on) {
+			this.renderPreview();
+			return;
+		}
+		if (motionAllowed()) {
+			this.rows.forEach((row, index) =>
+				row.el.animate(ENTER, {
+					duration: 260,
+					easing: EASE,
+					delay: Math.min(index, 6) * 35,
+					fill: "backwards",
+				}),
+			);
+		}
+		(this.rows.find((row) => row.el.hasClass("is-active")) ?? this.rows[0])
+			?.textarea.focus();
+	}
+
+	private renderPreview(): void {
+		const root = this.previewEl;
+		root.empty();
+		const name = this.accountName("You");
+		const posts = this.rows.filter((row) => !this.isEmpty(row));
+		if (posts.length === 0) {
+			root.createDiv({ cls: "nt-tw-empty", text: "Nothing to preview yet." });
+			return;
+		}
+		posts.forEach((row, index) => {
+			const post = root.createDiv({ cls: "nt-tw" });
+			post.setCssProps({ "--i": String(index) });
+			post
+				.createDiv({ cls: "nt-tw-side" })
+				.createSpan({ cls: "nt-avatar", text: name.charAt(0).toUpperCase() });
+			const main = post.createDiv({ cls: "nt-tw-main" });
+			const meta = main.createDiv({ cls: "nt-tw-meta" });
+			meta.createSpan({ cls: "nt-tw-name", text: name });
+			meta.createSpan({ cls: "nt-tw-handle", text: `@${name} · now` });
+			if (posts.length > 1) {
+				meta.createSpan({ cls: "nt-tw-index", text: `${index + 1}/${posts.length}` });
+			}
+			if (row.textarea.value.trim()) {
+				this.previewText(main.createDiv({ cls: "nt-tw-text" }), row.textarea.value);
+			}
+			if (row.attachments.length > 0) {
+				const media = main.createDiv({ cls: `nt-tw-media is-${row.attachments.length}` });
+				for (const file of row.attachments) {
+					media.createEl("img", {
+						attr: { src: this.app.vault.getResourcePath(file), alt: file.name },
+					});
+				}
+			}
+			const actions = main.createDiv({ cls: "nt-tw-actions" });
+			for (const act of ["reply", "repost", "like", "views"] as const) {
+				icon(actions.createSpan({ cls: "nt-tw-act" }), act);
+			}
+		});
+	}
+
+	/**
+	 * Post text as the timeline shows it. A long post (X Premium) is cut after
+	 * 280 characters with "Show more", like on X; clicking it shows the rest.
+	 */
+	private previewText(el: HTMLElement, text: string): void {
+		const { normalizedText, boundaries, weightedLength } = analyzeTweetText(text);
+		if (weightedLength <= MAX_TWEET_LENGTH) {
+			this.richText(el, text);
+			return;
+		}
+		let cut =
+			boundaries.filter((b) => b.weightedLength <= MAX_TWEET_LENGTH).pop()?.index ?? 0;
+		// Prefer ending on a word; text without spaces (CJK) is cut at the limit.
+		const space = normalizedText.lastIndexOf(" ", cut);
+		if (space > cut - 40) cut = space;
+		this.richText(el, `${normalizedText.slice(0, cut).trimEnd()}…`);
+		const more = el.createSpan({ cls: "nt-tw-more", text: " Show more" });
+		more.addEventListener("click", () => {
+			el.empty();
+			this.richText(el, normalizedText);
+		});
+	}
+
+	/** Color links, #hashtags, and @mentions the way X does. */
+	private richText(el: HTMLElement, text: string): void {
+		let last = 0;
+		for (const match of text.matchAll(/https?:\/\/\S+|[#＃][\p{L}\p{N}_]+|@\w{1,15}/gu)) {
+			el.appendText(text.slice(last, match.index));
+			el.createSpan({ cls: "nt-tw-link", text: match[0] });
+			last = match.index + match[0].length;
+		}
+		el.appendText(text.slice(last));
 	}
 
 	private buildAddButton(root: HTMLElement): void {
@@ -318,13 +559,15 @@ export class ComposeTweetModal extends Modal {
 			cls: "nt-add",
 			attr: { type: "button" },
 		});
-		setIcon(add.createSpan({ cls: "nt-add-icon" }), "plus");
+		icon(add.createSpan({ cls: "nt-add-icon" }), "plus");
 		add.createSpan({ text: "Add post" });
 		add.addEventListener("click", () => this.appendRow());
+		this.addEl = add;
 	}
 
 	private buildFooter(root: HTMLElement): void {
 		const footer = root.createDiv({ cls: "nt-footer" });
+		this.footerEl = footer;
 		const context = footer.createDiv({ cls: "nt-footer-context" });
 		this.statusEl = context.createDiv({ cls: "nt-footer-status" });
 		if (this.options.allowSchedule) {
@@ -338,17 +581,21 @@ export class ComposeTweetModal extends Modal {
 		if (this.options.allowSchedule) {
 			this.scheduleButton = actions.createEl("button", {
 				cls: "nt-btn nt-btn-ghost",
-				text: "Schedule",
 				attr: { type: "button" },
 			});
+			icon(this.scheduleButton, "clock");
+			this.scheduleLabel = this.scheduleButton.createSpan({ text: "Schedule" });
 			this.scheduleButton.addEventListener("click", () =>
 				void this.submitSchedule(),
 			);
 		}
 		this.postButton = actions.createEl("button", {
 			cls: "nt-btn nt-btn-cta",
-			text: this.options.submitLabel ?? "Post",
 			attr: { type: "button" },
+		});
+		icon(this.postButton, this.options.submitLabel === "Update" ? "check" : "send");
+		this.postLabel = this.postButton.createSpan({
+			text: this.options.submitLabel ?? "Post",
 		});
 		this.postButton.addEventListener("click", () => this.submitPost());
 	}
@@ -368,6 +615,7 @@ export class ComposeTweetModal extends Modal {
 		}
 		new ImagePickerModal(this.app, images, (file) => {
 			row.attachments.push(file);
+			playSound("attach");
 			this.renderAttachments(row);
 			this.refreshState();
 			row.textarea.focus();
@@ -376,8 +624,12 @@ export class ComposeTweetModal extends Modal {
 
 	private renderAttachments(row: PostRow): void {
 		row.attachEl.empty();
+		const shown = new Set(row.shownAttachments);
+		row.shownAttachments = [...row.attachments];
 		for (const file of row.attachments) {
-			const chip = row.attachEl.createDiv({ cls: "nt-attachment" });
+			const chip = row.attachEl.createDiv({
+				cls: shown.has(file) ? "nt-attachment" : "nt-attachment is-new",
+			});
 			chip.createEl("img", {
 				attr: { src: this.app.vault.getResourcePath(file), alt: file.name },
 			});
@@ -385,8 +637,9 @@ export class ComposeTweetModal extends Modal {
 				cls: "nt-attachment-remove",
 				attr: { type: "button", "aria-label": `Remove ${file.name}` },
 			});
-			setIcon(remove, "x");
+			icon(remove, "x");
 			remove.addEventListener("click", () => {
+				playSound("detach");
 				row.attachments = row.attachments.filter((item) => item !== file);
 				this.renderAttachments(row);
 				this.refreshState();
@@ -400,18 +653,34 @@ export class ComposeTweetModal extends Modal {
 		}
 	}
 
-	/** Repaint one row's X-weighted character count. */
+	/**
+	 * Repaint one row's X-weighted character count: a ring that fills toward 280
+	 * like X's, the remaining count near the limit, and for a long post (X
+	 * Premium) its length, since X folds it after 280 characters.
+	 */
 	private update(row: PostRow): void {
 		const length = analyzeTweetText(row.textarea.value).weightedLength;
-		const remaining = MAX_TWEET_LENGTH - length;
+		const remaining = this.limit - length;
 		const shown = remaining <= COUNTDOWN_FROM;
-		const over = this.autoSplit && length > MAX_TWEET_LENGTH;
+		const long = !shown && length > MAX_TWEET_LENGTH;
+		const over = this.autoSplit && length > this.limit;
+		const wasOver = row.el.hasClass("is-over");
 
+		row.count.setCssProps({
+			"--nt-p": String(Math.min(length / MAX_TWEET_LENGTH, 1)),
+		});
+		row.count.toggleClass("is-empty", length === 0);
 		row.count.toggleClass("is-shown", shown);
+		row.count.toggleClass("is-long", long);
 		row.count.toggleClass("is-over", over);
-		row.card.toggleClass("has-count", shown);
 		row.el.toggleClass("is-over", over);
-		if (shown) row.count.setText(String(remaining));
+		row.countNum.setText(
+			shown ? String(remaining) : long ? length.toLocaleString("en-US") : "",
+		);
+		if (over && !wasOver) {
+			playSound("over");
+			if (motionAllowed()) row.card.animate(SHAKE, { duration: 360, easing: "ease-out" });
+		}
 	}
 
 	/**
@@ -437,17 +706,19 @@ export class ComposeTweetModal extends Modal {
 			!ok ||
 			Boolean(this.sending) ||
 			(requiresAccount && this.selectedAccountId === "");
-		this.postButton.setText(
+		this.postButton.toggleClass("is-sending", this.sending === "post");
+		this.postLabel.setText(
 			this.sending === "post"
 				? "Posting\u2026"
 				: (this.options.submitLabel ?? "Post"),
 		);
-		if (this.scheduleButton) {
+		if (this.scheduleButton && this.scheduleLabel) {
 			this.scheduleButton.disabled = !ok || Boolean(this.sending);
-			this.scheduleButton.setText(
+			this.scheduleLabel.setText(
 				this.sending === "schedule" ? "Scheduling\u2026" : "Schedule",
 			);
 		}
+		if (this.previewing) this.renderPreview();
 	}
 
 	private handlePaste(event: ClipboardEvent, row: PostRow): void {
@@ -468,10 +739,13 @@ export class ComposeTweetModal extends Modal {
 			row.textarea.value.slice(0, start) +
 			pasted +
 			row.textarea.value.slice(end);
-		if (analyzeTweetText(combined).weightedLength <= MAX_TWEET_LENGTH) return;
+		if (analyzeTweetText(combined).weightedLength <= this.limit) return;
 		event.preventDefault();
-		this.replaceRowWithPosts(row, splitIntoTweets(combined));
-		this.refreshState();
+		this.flip(() => {
+			this.replaceRowWithPosts(row, splitIntoTweets(combined, this.limit));
+			this.refreshState();
+		});
+		playSound("split");
 	}
 
 	private replaceRowWithPosts(row: PostRow, chunks: string[]): void {
@@ -500,6 +774,7 @@ export class ComposeTweetModal extends Modal {
 				const path = await this.app.fileManager.getAvailablePathForAttachment(name);
 				const saved = await this.app.vault.createBinary(path, await file.arrayBuffer());
 				row.attachments.push(saved);
+				playSound("attach");
 				this.renderAttachments(row);
 				this.refreshState();
 			} catch (error) {
@@ -522,8 +797,7 @@ export class ComposeTweetModal extends Modal {
 
 		if (
 			(event.code === "Enter" &&
-				analyzeTweetText(row.textarea.value).weightedLength >=
-					MAX_TWEET_LENGTH &&
+				analyzeTweetText(row.textarea.value).weightedLength >= this.limit &&
 				this.autoSplit) ||
 			(enter && event.altKey)
 		) {
@@ -586,13 +860,17 @@ export class ComposeTweetModal extends Modal {
 		const index = value.indexOf(BREAK_RUN);
 		if (index === -1) return false;
 
-		row.textarea.value = value.slice(0, index);
-		this.update(row);
-		const next = this.makeRow(
-			value.slice(index + BREAK_RUN.length),
-			this.rows.indexOf(row) + 1,
-		);
-		this.refreshState();
+		const next = this.flip(() => {
+			row.textarea.value = value.slice(0, index);
+			this.update(row);
+			const made = this.makeRow(
+				value.slice(index + BREAK_RUN.length),
+				this.rows.indexOf(row) + 1,
+			);
+			this.refreshState();
+			return made;
+		});
+		playSound("split");
 		next.textarea.focus();
 		next.textarea.setSelectionRange(0, 0);
 		return true;
@@ -603,8 +881,12 @@ export class ComposeTweetModal extends Modal {
 			log.warning("Finish the empty post before adding another.");
 			return null;
 		}
-		const row = this.makeRow();
-		this.refreshState();
+		const row = this.flip(() => {
+			const made = this.makeRow();
+			this.refreshState();
+			return made;
+		});
+		playSound("add");
 		row.textarea.focus();
 		return row;
 	}
@@ -614,12 +896,17 @@ export class ComposeTweetModal extends Modal {
 			log.warning("Finish the empty post before adding another.");
 			return;
 		}
-		const row = this.makeRow("", index);
-		this.refreshState();
+		const row = this.flip(() => {
+			const made = this.makeRow("", index);
+			this.refreshState();
+			return made;
+		});
+		playSound("add");
 		row.textarea.focus();
 	}
 
 	private deleteRow(row: PostRow): void {
+		playSound("remove");
 		if (this.rows.length === 1) {
 			row.textarea.value = "";
 			row.attachments = [];
@@ -629,19 +916,25 @@ export class ComposeTweetModal extends Modal {
 			return;
 		}
 		const index = this.rows.indexOf(row);
-		this.rows.splice(index, 1);
-		row.el.remove();
-		this.refreshState();
+		this.ghost(row);
+		this.flip(() => {
+			this.rows.splice(index, 1);
+			row.el.remove();
+			this.refreshState();
+		});
 		this.rows[index === 0 ? 0 : index - 1]?.textarea.focus();
 	}
 
 	private swapRows(a: number, b: number): void {
-		[this.rows[a], this.rows[b]] = [this.rows[b], this.rows[a]];
-		this.thread.insertBefore(
-			this.rows[Math.min(a, b)].el,
-			this.rows[Math.max(a, b)].el,
-		);
-		this.refreshState();
+		this.flip(() => {
+			[this.rows[a], this.rows[b]] = [this.rows[b], this.rows[a]];
+			this.thread.insertBefore(
+				this.rows[Math.min(a, b)].el,
+				this.rows[Math.max(a, b)].el,
+			);
+			this.refreshState();
+		});
+		playSound("move");
 		this.rows[b].textarea.focus();
 	}
 
@@ -668,12 +961,13 @@ export class ComposeTweetModal extends Modal {
 		if (
 			this.autoSplit &&
 			this.rows.some(
-				(row) =>
-					analyzeTweetText(row.textarea.value).weightedLength >
-					MAX_TWEET_LENGTH,
+				(row) => analyzeTweetText(row.textarea.value).weightedLength > this.limit,
 			)
 		) {
-			return { ok: false, reason: "A post is over 280 characters" };
+			return {
+				ok: false,
+				reason: `A post is over ${this.limit.toLocaleString("en-US")} characters`,
+			};
 		}
 		if (this.rows.some((row) => this.isEmpty(row))) {
 			return { ok: false, reason: "A post in the thread is empty" };
@@ -699,6 +993,7 @@ export class ComposeTweetModal extends Modal {
 			(requiresAccount && !this.selectedAccountId)
 		)
 			return;
+		playSound("send");
 		void this.submit({
 			content: this.collectContent(),
 			...(this.selectedAccountId
@@ -713,6 +1008,7 @@ export class ComposeTweetModal extends Modal {
 		const postAt = await promptForDateTime(this.app);
 		if (postAt === null) return;
 
+		playSound("schedule");
 		await this.submit({ content: this.collectContent(), postAt });
 	}
 

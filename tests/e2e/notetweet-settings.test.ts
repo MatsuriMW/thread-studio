@@ -7,7 +7,7 @@ import {
 	waitForNoteTweetReady,
 } from "./harness";
 
-const getContext = createNoteTweetE2EHarness("notetweet-settings");
+const getContext = createNoteTweetE2EHarness("thread-studio-settings");
 
 /** The pre-modernization credential shape older builds persisted in data.json. */
 interface NoteTweetLegacyData {
@@ -188,7 +188,7 @@ describe("NoteTweet settings tab", () => {
 			input.dispatchEvent(new Event("input"));
 			input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
 			const suffixes = ["api-key", "api-secret", "access-token", "access-token-secret"];
-			const secretId = (suffix) => "notetweet-account-" + plugin.settings.accounts[0]?.id + "-" + suffix;
+			const secretId = (suffix) => "thread-studio-x-" + plugin.settings.accounts[0]?.id + "-" + suffix;
 			try {
 				await migration;
 				const values = plugin.settings.accounts.length
@@ -248,10 +248,10 @@ describe("NoteTweet settings tab", () => {
 	test("migrates the four fixed secrets into one named account and clears the old keys", async () => {
 		const { obsidian, plugin } = getContext();
 		const oldIds = {
-			apiKey: "notetweet-api-key",
-			apiSecret: "notetweet-api-secret",
-			accessToken: "notetweet-access-token",
-			accessTokenSecret: "notetweet-access-token-secret",
+			apiKey: "thread-studio-api-key",
+			apiSecret: "thread-studio-api-secret",
+			accessToken: "thread-studio-access-token",
+			accessTokenSecret: "thread-studio-access-token-secret",
 		};
 		const newIds = Object.fromEntries(
 			Object.entries({
@@ -261,7 +261,7 @@ describe("NoteTweet settings tab", () => {
 				accessTokenSecret: "access-token-secret",
 			}).map(([field, suffix]) => [
 				field,
-				`notetweet-account-migrated-account-${suffix}`,
+				`thread-studio-x-migrated-account-${suffix}`,
 			]),
 		);
 		const values = {

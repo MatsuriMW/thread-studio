@@ -33,7 +33,7 @@ export class SelfHostedScheduler implements Scheduler {
 
 	async getScheduledTweets(): Promise<ScheduledTweet[]> {
 		const response = await this.send("/scheduledTweets", "GET");
-		return response.json ?? [];
+		return (response.json ?? []) as ScheduledTweet[];
 	}
 
 	async deleteScheduledTweet(tweet: ScheduledTweet): Promise<void> {

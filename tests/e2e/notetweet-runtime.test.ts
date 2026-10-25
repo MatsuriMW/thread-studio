@@ -7,7 +7,7 @@ import {
 	waitForNoteTweetReady,
 } from "./harness";
 
-const getContext = createNoteTweetE2EHarness("notetweet-runtime");
+const getContext = createNoteTweetE2EHarness("thread-studio-runtime");
 
 const ISSUE_23_THREAD = [
 	"THREAD START",
@@ -181,8 +181,8 @@ describe("NoteTweet runtime", () => {
 	test("exposes SecretStorage that round-trips a secret on the live runtime", async () => {
 		const { obsidian } = getContext();
 
-		const probeId = "notetweet-e2e-probe";
-		const probeValue = "notetweet-e2e-secret-value";
+		const probeId = "thread-studio-e2e-probe";
+		const probeValue = "thread-studio-e2e-secret-value";
 
 		const result = await obsidian.dev.evalJsonAsync<{
 			hasSetSecret: boolean;

@@ -198,7 +198,7 @@ describe("storeCredentials", () => {
 		);
 		expect(store.get(schedulerPasswordSecretId(PASSWORD_KEY))).toBe("sched-pw");
 		expect(store.get(accountSecretId("personal", "apiSecret"))).toBe("");
-		expect(store.has("notetweet-account-personal-undefined")).toBe(false);
+		expect(store.has("thread-studio-x-personal-undefined")).toBe(false);
 	});
 });
 

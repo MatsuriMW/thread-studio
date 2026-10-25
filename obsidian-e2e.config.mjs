@@ -9,7 +9,7 @@
 // state; keep the two in sync. tests/e2e-config.test.ts fails if this drifts
 // from DEFAULT_SETTINGS.
 export default {
-	pluginId: "notetweet",
+	pluginId: "thread-studio",
 	// NoteTweet ships a hand-written styles.css at the repo root alongside the
 	// compiled main.js, so all three plugin artifacts are symlinked into the vault.
 	pluginArtifacts: ["manifest.json", "main.js", "styles.css"],
@@ -18,6 +18,8 @@ export default {
 		defaultAccountId: "",
 		postTweetTag: "",
 		autoSplitTweets: true,
+		premiumLongPosts: false,
+		soundEffects: true,
 		scheduling: {
 			enabled: false,
 			url: "",
@@ -33,7 +35,7 @@ export default {
 	// "=> true" so an echoed command can't be mistaken for a positive result.
 	readyProbe: {
 		kind: "eval",
-		code: `Boolean(app.plugins.plugins["notetweet"])`,
+		code: `Boolean(app.plugins.plugins["thread-studio"])`,
 		match: "=> true",
 	},
 };

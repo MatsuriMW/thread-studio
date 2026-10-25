@@ -1,6 +1,8 @@
 import { analyzeTweetText, type TextBoundary } from "./textAnalysis";
 
 export const MAX_TWEET_LENGTH = 280;
+/** X Premium accounts can post up to 25,000 characters in a single post. */
+export const MAX_LONG_POST_LENGTH = 25_000;
 
 export const THREAD_START = "THREAD START";
 export const THREAD_END = "THREAD END";

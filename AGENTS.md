@@ -1,13 +1,23 @@
 # Repository Guidelines
 
 ## Project Overview
-NoteTweet is an Obsidian community plugin for posting tweets and threads to X
-(formerly Twitter) directly from your notes. It provides a writing-first composer
-modal, "post selection" and "post file as thread" commands, `THREAD START` /
-`THREAD END` parsing, auto-splitting at the 280-character limit, image
-attachments, an optional post-tweet tag, delete/undo of just-posted tweets, and
-an optional self-hosted scheduler. API credentials live in Obsidian's built-in
-encrypted Secret Storage, not in `data.json`.
+Thread Studio is an Obsidian community plugin for writing posts, threads, X
+Premium long posts, and X Articles from your notes. It is a fork of NoteTweet
+(chhoumann/notetweet_obsidian, MIT), published with the original author's
+consent (chhoumann/notetweet_obsidian#76). Source files and internal names
+(`NoteTweet`, `NoteTweetSettings`) keep NoteTweet's naming so upstream fixes
+stay easy to port; user-facing text, the plugin id (`thread-studio`), and every
+SecretStorage id (`thread-studio-*`) are Thread Studio's own.
+
+It provides a writing-first composer modal with a Write / Preview switch,
+"post selection", "post file as thread", and "post current block" commands,
+`THREAD START` / `THREAD END` parsing, auto-splitting at the length limit (280,
+or 25,000 for X Premium long posts), image attachments, "post note as X Article"
+(`src/article.ts` converts Markdown to the Articles API's DraftJS content), an
+optional post-tweet tag, delete/undo of just-posted tweets, and an optional
+self-hosted scheduler. API credentials live in Obsidian's built-in encrypted
+Secret Storage, not in `data.json`. Composer motion, animated icons, and UI
+sounds live in `src/fx.ts` and the second half of `styles.css`.
 
 ## Project Structure & Module Organization
 Source lives in `src/`. Plugin registration and command wiring are in
@@ -66,7 +76,7 @@ Tab indentation is used in config; source follows the existing 2-space TypeScrip
 style. Use camelCase for variables and functions, PascalCase for classes and
 modal components. Prefer inline type-only imports (ESLint enforces
 `consistent-type-imports`). Route user-facing messages through `src/log.ts`
-(NoteTweet surfaces everything as Obsidian notices, not console logs).
+(Thread Studio surfaces everything as Obsidian notices, not console logs).
 
 ## Testing Guidelines
 Vitest runs in the `node` environment and aliases `obsidian` to
@@ -91,17 +101,17 @@ would clobber each other on the plugin symlink, `data.json`, and
 `plugin:reload`. Use the shared `obsidian-e2e` instance runner instead. The four
 `provision:e2e-vault` / `start:e2e-obsidian` / `stop:e2e-obsidian` /
 `obsidian:e2e` scripts run on the `obsidian-e2e` bin, configured by
-`obsidian-e2e.config.mjs` at the repo root (plugin id `notetweet`, the three
+`obsidian-e2e.config.mjs` at the repo root (plugin id `thread-studio`, the three
 symlinked artifacts `manifest.json` / `main.js` / `styles.css`, and the
 `DEFAULT_SETTINGS`-shaped `data.json` seed). The runner provisions a
 worktree-local vault, starts or reuses a private-`HOME` Obsidian instance bound
-to it, disables Restricted Mode, waits until NoteTweet is live
-(`Boolean(app.plugins.plugins["notetweet"])`), then runs your command:
+to it, disables Restricted Mode, waits until Thread Studio is live
+(`Boolean(app.plugins.plugins["thread-studio"])`), then runs your command:
 
 ```bash
 pnpm run build                                 # produce root main.js + manifest.json + styles.css first
 pnpm run obsidian:e2e -- eval code='app.vault.getName()'
-pnpm run obsidian:e2e -- eval code='Boolean(app.plugins.plugins.notetweet)'
+pnpm run obsidian:e2e -- eval code='Boolean(app.plugins.plugins["thread-studio"])'
 pnpm run obsidian:e2e -- dev:errors
 ```
 
@@ -147,17 +157,12 @@ exists) before launching, so you rarely need `stop` by hand.
   image upload is desktop only).
 
 ## Release & PR Expectations
-Releases run on the shared forensic PR-to-release pipeline
-(`chhoumann/obsidian-plugin-workflows`). After a green CI run on `master`, a
-per-repo GitHub App bot opens or refreshes a single standing release PR that
-touches only the version files (`package.json`, `manifest.json`, `versions.json`);
-merging that PR is the sole release act. There is no manual dispatch on the happy
-path and pushes to `master` do not auto-release. The pipeline keeps
-`manifest.json` and `versions.json` in sync with the package version and Obsidian
-`minAppVersion`. Release assets are `main.js`, `manifest.json`, and `styles.css`,
-and each release is attested with build provenance. Treat unexpected diffs in
-`package.json`, `pnpm-lock.yaml`, `manifest.json`, or `versions.json` as blockers
-until understood.
+Bump `version` in `manifest.json`, `package.json`, and `versions.json`
+together, commit, then push a tag that equals the manifest version (for example
+`1.0.1`). `.github/workflows/release.yml` checks the tag against the manifest,
+runs `pnpm run lint`, `pnpm run lint:obsidian` (the rule set the Obsidian
+community directory scans with), tests, and the build, attests the build, and
+publishes `main.js`, `manifest.json`, and `styles.css` as the release assets.
 
 Pull requests should include: a concise summary of the user-facing change; linked
 issues when relevant; screenshots or recordings for visible UI changes; the exact

@@ -17,7 +17,7 @@ import {
 } from "obsidian-e2e";
 import { afterAll, afterEach, beforeAll, beforeEach } from "vitest";
 
-export const PLUGIN_ID = "notetweet";
+export const PLUGIN_ID = "thread-studio";
 // Reads the OBSIDIAN_E2E_* env that `start:e2e-obsidian --print-env` emits and
 // binds the CLI to that instance's private HOME.
 const { expectedVaultPath, ...obsidianEnv } = resolveObsidianEnvOptions();

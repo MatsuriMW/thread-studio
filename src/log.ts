@@ -1,6 +1,6 @@
 import { Notice } from "obsidian";
 
-const PREFIX = "NoteTweet";
+const PREFIX = "Thread Studio";
 
 const ERROR_NOTICE_MS = 10_000;
 

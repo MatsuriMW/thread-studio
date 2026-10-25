@@ -1,10 +1,10 @@
 {
-	"id": "notetweet",
-	"name": "NoteTweet",
-	"version": "0.7.1",
+	"id": "thread-studio",
+	"name": "Thread Studio",
+	"version": "1.0.0",
 	"minAppVersion": "1.13.0",
-	"description": "Post tweets and threads to X (Twitter) directly from your notes.",
-	"author": "Christian Bager Bach Houmann",
-	"authorUrl": "https://bagerbach.com/",
+	"description": "Write X threads, long posts, and Articles from your notes, with a live preview and a lively composer.",
+	"author": "MatsuriMW",
+	"authorUrl": "https://github.com/MatsuriMW",
 	"isDesktopOnly": false
 }

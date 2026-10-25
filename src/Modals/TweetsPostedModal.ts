@@ -2,6 +2,7 @@ import { type App, Modal, Notice, Setting } from "obsidian";
 import { deferred } from "../deferred";
 import type { PostedTweet } from "../xApi";
 import type { TwitterClient } from "../twitter";
+import { icon, playSound } from "../fx";
 
 /**
  * Confirmation shown after posting. Links to each live tweet and offers to
@@ -30,14 +31,21 @@ export class TweetsPostedModal extends Modal {
 			this.posts.length > 1 ? "Your tweets are live!" : "Your tweet is live!",
 		);
 
+		this.modalEl.addClass("nt-posted-modal");
+		playSound("posted");
+		this.titleEl.prepend(icon(createFragment(), "check"));
+
 		const list = contentEl.createDiv({ cls: "nt-posted-list" });
-		for (const post of this.posts) {
-			list.createEl("a", {
-				text: post.data.text,
+		this.posts.forEach((post, index) => {
+			const item = list.createEl("a", {
+				cls: "nt-posted-item",
 				href: `https://x.com/i/status/${post.data.id}`,
-				attr: { target: "_blank", rel: "noopener" },
+				attr: { target: "_blank", rel: "noopener", "aria-label": "Open on X" },
 			});
-		}
+			item.setCssProps({ "--i": String(index) });
+			item.createSpan({ cls: "nt-posted-text", text: post.data.text });
+			icon(item, "open");
+		});
 
 		new Setting(contentEl)
 			.addButton((button) =>
@@ -65,6 +73,7 @@ export class TweetsPostedModal extends Modal {
 		}
 
 		this.userDeletedTweets = true;
+		playSound("deleted");
 		const plural = this.posts.length > 1 ? "s" : "";
 		new Notice(`${this.posts.length} tweet${plural} deleted.`);
 		this.close();

@@ -30,7 +30,7 @@ async function composerSend(
 		loadLocalStorage: () => null,
 		saveLocalStorage: () => {},
 	});
-	const plugin = new NoteTweet(app, { id: "notetweet" } as never);
+	const plugin = new NoteTweet(app, { id: "thread-studio" } as never);
 	const commands = new Map<string, () => void>();
 	vi.spyOn(plugin, "addCommand").mockImplementation((command) => {
 		if (command.callback) commands.set(command.id, command.callback);

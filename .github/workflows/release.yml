@@ -1,51 +1,52 @@
-# Caller stub: release (stage 3) for notetweet (pnpm, styles.css).
-#
-# workflow_dispatch is the only trigger: the reusable validate workflow (stage 2)
-# dispatches this on the durable release-run/<version> recovery branch. Keeping a
-# plain workflow_dispatch here also makes the release itself replayable for
-# recovery without re-running the whole pipeline.
-
 name: Release
 
+# Push a tag that matches manifest.json's version (e.g. 1.0.0) to build and
+# publish a GitHub Release with the three files Obsidian installs.
 on:
-    workflow_dispatch:
-        inputs:
-            releasePr:
-                description: "Merged machine-generated release PR number to recover"
-                required: true
-                type: string
+    push:
+        tags:
+            - "*.*.*"
 
-permissions: {}
-
-concurrency:
-    group: release
-    cancel-in-progress: false
+permissions:
+    contents: write
+    id-token: write
+    attestations: write
 
 jobs:
     release:
-        permissions:
-            actions: read
-            attestations: write
-            contents: write
-            id-token: write
-            pull-requests: read
-        uses: chhoumann/obsidian-plugin-workflows/.github/workflows/release.yml@d6b3b8c2cf460059238043b32a08dcaa3be4828f # v5.0.0
-        with:
-            release-pr: ${{ inputs.releasePr }}
-            plugin-name: notetweet
-            package-manager: pnpm
-            # Must match the release-policy pinned in release-prepare.yml.
-            release-policy: '[{"scope":"deps","type":"build","release":"patch"}]'
-            default-branch: master
-            node-version: "24"
-            release-bot-app-slug: notetweet-release-bot
-            release-assets: '["main.js","manifest.json","styles.css"]'
-            build-command: pnpm run build
-            verify-commands: |
-                pnpm run lint
-                pnpm run test
-                pnpm run typecheck:e2e
-        secrets:
-            # Optional: unset secrets resolve to '' and the notify job skips them.
-            slack-webhook: ${{ secrets.SLACK_WEBHOOK }}
-            discord-webhook: ${{ secrets.DISCORD_WEBHOOK }}
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: pnpm/action-setup@v4
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: "24"
+                  cache: pnpm
+
+            - run: pnpm install --frozen-lockfile
+
+            - name: Check the tag matches manifest.json
+              run: test "$(node -p 'require("./manifest.json").version')" = "${GITHUB_REF_NAME}"
+
+            - run: pnpm run lint
+            - run: pnpm run lint:obsidian
+            - run: pnpm run test
+            - run: pnpm run build
+
+            # Lets anyone verify that the release files were built from this repository.
+            - uses: actions/attest-build-provenance@v2
+              with:
+                  subject-path: |
+                      main.js
+                      manifest.json
+                      styles.css
+
+            - uses: softprops/action-gh-release@v2
+              with:
+                  generate_release_notes: true
+                  files: |
+                      main.js
+                      manifest.json
+                      styles.css

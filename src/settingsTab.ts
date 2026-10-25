@@ -20,6 +20,7 @@ import {
 } from "./secrets";
 import {
 	type LegacyCredentialData,
+	type MigratableCredentials,
 	legacyCredentialsEncrypted,
 	legacyCredentialsPresent,
 	readLegacyCredentials,
@@ -31,6 +32,7 @@ import {
 import { InputPromptModal } from "./Modals/InputPromptModal";
 import { ScheduledTweetsModal } from "./Modals/ScheduledTweetsModal";
 import { createAccount, type XAccount } from "./settings";
+import { playSound, setSoundEnabled } from "./fx";
 
 const RECONNECT_DELAY_MS = 800;
 
@@ -58,6 +60,10 @@ export class NoteTweetSettingsTab extends PluginSettingTab {
 				return settings.postTweetTag;
 			case "autoSplitTweets":
 				return settings.autoSplitTweets;
+			case "premiumLongPosts":
+				return settings.premiumLongPosts;
+			case "soundEffects":
+				return settings.soundEffects;
 			case "scheduling.enabled":
 				return settings.scheduling.enabled;
 			case "scheduling.url":
@@ -71,13 +77,21 @@ export class NoteTweetSettingsTab extends PluginSettingTab {
 		const settings = this.noteTweet.settings;
 		switch (key) {
 			case "defaultAccountId":
-				settings.defaultAccountId = String(value);
+				settings.defaultAccountId = typeof value === "string" ? value : "";
 				break;
 			case "postTweetTag":
-				settings.postTweetTag = String(value);
+				settings.postTweetTag = typeof value === "string" ? value : "";
 				break;
 			case "autoSplitTweets":
 				settings.autoSplitTweets = Boolean(value);
+				break;
+			case "premiumLongPosts":
+				settings.premiumLongPosts = Boolean(value);
+				break;
+			case "soundEffects":
+				settings.soundEffects = Boolean(value);
+				setSoundEnabled(settings.soundEffects);
+				playSound("toggle");
 				break;
 			case "scheduling.enabled":
 				settings.scheduling.enabled = Boolean(value);
@@ -86,7 +100,7 @@ export class NoteTweetSettingsTab extends PluginSettingTab {
 				this.refreshDomState();
 				return;
 			case "scheduling.url":
-				settings.scheduling.url = String(value);
+				settings.scheduling.url = typeof value === "string" ? value : "";
 				await this.noteTweet.saveSettings();
 				this.noteTweet.refreshScheduler();
 				return;
@@ -138,7 +152,7 @@ export class NoteTweetSettingsTab extends PluginSettingTab {
 			items: [
 				{
 					name: "Secret storage unavailable",
-					desc: "This version of Obsidian does not support secret storage, so credentials cannot be stored securely. Update Obsidian to use NoteTweet.",
+					desc: "This version of Obsidian does not support secret storage, so credentials cannot be stored securely. Update Obsidian to use Thread Studio.",
 					visible: () => !hasSecretStorage(this.app),
 				},
 				{
@@ -255,9 +269,19 @@ export class NoteTweetSettingsTab extends PluginSettingTab {
 					control: { type: "text", key: "postTweetTag", placeholder: "#tweeted" },
 				},
 				{
+					name: "X Premium long posts",
+					desc: "Your accounts have X Premium, so one post can hold up to 25,000 characters. X shows the first 280, then Show more.",
+					control: { type: "toggle", key: "premiumLongPosts" },
+				},
+				{
 					name: "Auto-split tweets",
-					desc: "Split content into multiple tweets at 280 characters. Disable to allow longer tweets (requires a paid X plan).",
+					desc: "Split content into multiple posts at the length limit (280 characters, or 25,000 with X Premium long posts). Disable to send text as written without checking its length.",
 					control: { type: "toggle", key: "autoSplitTweets" },
+				},
+				{
+					name: "Sound effects",
+					desc: "Play short, quiet sounds when you add, move, or delete posts, attach images, and post.",
+					control: { type: "toggle", key: "soundEffects" },
 				},
 			],
 		};
@@ -453,7 +477,7 @@ export class NoteTweetSettingsTab extends PluginSettingTab {
 			password = entered;
 		}
 
-		let credentials;
+		let credentials: MigratableCredentials;
 		try {
 			credentials = await readLegacyCredentials(data, password);
 		} catch {
@@ -481,7 +505,7 @@ export class NoteTweetSettingsTab extends PluginSettingTab {
 		stripLegacyCredentials(data);
 		await this.noteTweet.saveSettings();
 		this.noteTweet.refreshScheduler();
-		new Notice(`NoteTweet: credentials moved to the ${account.name} account.`);
+		new Notice(`Thread Studio: credentials moved to the ${account.name} account.`);
 		this.update();
 	}
 }

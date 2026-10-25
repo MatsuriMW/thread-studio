@@ -91,7 +91,7 @@ const PASSWORD_KEY = /^[a-f0-9]+$/;
 
 /** Device-local marker: this vault's scheduler password was set on this device. */
 function passwordSetHere(settings: NoteTweetSettings): string {
-	return `notetweet-scheduler-password-set-${settings.scheduling.passwordKey}`;
+	return `thread-studio-scheduler-password-set-${settings.scheduling.passwordKey}`;
 }
 
 /**

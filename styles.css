@@ -534,3 +534,562 @@
 .nt-schedule-modal .nt-schedule-error:empty {
 	margin-top: 0;
 }
+
+/* ============================================================
+   Thread Studio - motion and polish (pairs with src/fx.ts)
+   Icons are Lucide animated in the spirit of lucide-animated; the
+   Preview tab follows X's own composer and Typefully's preview pane.
+   ============================================================ */
+@property --nt-p {
+	syntax: "<number>";
+	inherits: true;
+	initial-value: 0;
+}
+
+.postTweetModal {
+	--nt-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+	--nt-ease: cubic-bezier(0.22, 1, 0.36, 1);
+	--nt-warn: color-mix(in srgb, var(--color-orange) 72%, var(--text-muted));
+}
+
+/* Open near the top, like the command palette, so adding posts only grows the modal downward */
+body:not(.is-mobile) .modal-container:has(> .nt-compose-modal) {
+	align-items: flex-start;
+}
+body:not(.is-mobile) .modal.nt-compose-modal {
+	margin-top: 10vh;
+}
+
+/* ---- Header: account + Write / Preview ---- */
+.nt-head {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	margin: 0.25rem 0 0.875rem;
+}
+.nt-head .nt-account-picker {
+	margin: 0;
+}
+.nt-avatar {
+	flex: none;
+	width: 1.75rem;
+	height: 1.75rem;
+	border-radius: 50%;
+	display: grid;
+	place-items: center;
+	font-size: 0.8125rem;
+	font-weight: var(--font-bold);
+	color: var(--interactive-accent);
+	background: color-mix(in srgb, var(--interactive-accent) 14%, var(--background-primary));
+	box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--interactive-accent) 22%, transparent);
+}
+.nt-mode {
+	position: relative;
+	margin-left: auto;
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	padding: 2px;
+	border-radius: var(--radius-m);
+	background: var(--background-modifier-hover);
+}
+.nt-mode-pill {
+	position: absolute;
+	top: 2px;
+	bottom: 2px;
+	left: 2px;
+	width: calc(50% - 2px);
+	border-radius: calc(var(--radius-m) - 2px);
+	background: var(--background-primary);
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 0 0 1px var(--background-modifier-border);
+	transition: transform 0.35s var(--nt-spring);
+}
+.postTweetModal.is-preview .nt-mode-pill {
+	transform: translateX(100%);
+}
+.postTweetModal .nt-mode-btn {
+	position: relative;
+	z-index: 1;
+	height: auto;
+	padding: 0.25rem 0.75rem;
+	border: none;
+	background: transparent;
+	box-shadow: none;
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-semibold);
+	color: var(--text-muted);
+	cursor: pointer;
+	transition: color 0.2s ease;
+}
+.postTweetModal .nt-mode-btn:hover {
+	background: transparent;
+	color: var(--text-normal);
+}
+.postTweetModal .nt-mode-btn.is-on {
+	color: var(--text-normal);
+}
+
+/* ---- Post cards ---- */
+.nt-thread {
+	position: relative;
+}
+.postTweetModal .tweetArea {
+	font-family: var(--font-text);
+	padding-bottom: 2rem;
+}
+.nt-card {
+	transition: border-color 0.2s ease, box-shadow 0.25s var(--nt-ease), background-color 0.2s ease;
+}
+.nt-post:not(.is-active) .nt-card:hover {
+	border-color: var(--background-modifier-border-hover);
+}
+.nt-post.is-active .nt-card {
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--nt-accent) 12%, transparent), 0 6px 18px -8px color-mix(in srgb, var(--nt-accent) 35%, transparent);
+}
+.nt-node {
+	transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease, transform 0.35s var(--nt-spring);
+}
+.nt-post.is-active .nt-node {
+	transform: scale(1.12);
+}
+.nt-rail::after {
+	transition: background 0.3s ease;
+}
+.nt-post.is-active .nt-rail::after {
+	background: linear-gradient(var(--nt-accent), var(--background-modifier-border) 70%);
+}
+.nt-ghost {
+	position: absolute;
+	z-index: 0;
+	pointer-events: none;
+}
+
+/* Count ring, like X's: fills as you write; warm, larger, and numbered in the last 30; red past the limit */
+.postTweetModal .nt-count {
+	display: flex;
+	align-items: center;
+	gap: 0.375rem;
+	right: 0.625rem;
+	bottom: 0.5rem;
+	opacity: 1;
+	transition: opacity 0.2s ease, --nt-p 0.3s var(--nt-ease);
+}
+.postTweetModal .nt-count.is-empty {
+	opacity: 0;
+}
+.nt-ring {
+	--nt-ring: var(--nt-accent);
+	width: 1.125rem;
+	height: 1.125rem;
+	border-radius: 50%;
+	background: conic-gradient(var(--nt-ring) calc(var(--nt-p) * 1turn), var(--background-modifier-border) 0);
+	-webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2px));
+	mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 calc(100% - 2px));
+	transition: transform 0.35s var(--nt-spring);
+}
+.nt-count.is-shown {
+	color: var(--nt-warn);
+	font-weight: var(--font-semibold);
+}
+.nt-count.is-shown .nt-ring {
+	--nt-ring: var(--nt-warn);
+	transform: scale(1.3);
+}
+.nt-count.is-over {
+	color: var(--text-error);
+}
+.nt-count.is-over .nt-ring {
+	--nt-ring: var(--text-error);
+}
+.nt-count-num:not(:empty) {
+	animation: nt-pop 0.3s var(--nt-spring) both;
+}
+
+/* ---- Images ---- */
+.nt-attachment {
+	width: 5.5rem;
+	height: 5.5rem;
+	transition: transform 0.25s var(--nt-spring), box-shadow 0.2s ease;
+}
+.nt-attachment:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 6px 14px -6px rgba(0, 0, 0, 0.25);
+}
+.nt-attachment img {
+	transition: transform 0.4s var(--nt-ease);
+}
+.nt-attachment:hover img {
+	transform: scale(1.06);
+}
+.nt-attachment.is-new {
+	animation: nt-pop 0.35s var(--nt-spring) both;
+}
+.postTweetModal .nt-attachment-remove {
+	height: 1.25rem;
+	width: 1.25rem;
+	padding: 0;
+	box-shadow: none;
+	background: color-mix(in srgb, #000 62%, transparent);
+}
+.postTweetModal .nt-attachment-remove:hover {
+	background: color-mix(in srgb, #000 78%, transparent);
+}
+.nt-attachment-remove .nt-ico {
+	width: 0.75rem;
+	height: 0.75rem;
+}
+
+/* ---- Buttons ---- */
+/* The toolbar floats on the card's top edge, clear of the text */
+.postTweetModal .nt-controls {
+	top: -0.875rem;
+	right: 0.625rem;
+	z-index: 3;
+	box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.18);
+}
+.nt-controls {
+	transform: translateY(3px);
+	transition: opacity 0.15s ease, transform 0.25s var(--nt-ease);
+}
+.nt-post:hover .nt-controls,
+.nt-post:focus-within .nt-controls {
+	transform: none;
+}
+.postTweetModal .nt-icon-btn {
+	height: 1.5rem;
+	padding: 0;
+	background: transparent;
+	box-shadow: none;
+}
+.postTweetModal .nt-icon-btn:hover:not(:disabled) {
+	background: var(--background-modifier-hover);
+}
+.nt-icon-btn .nt-ico {
+	width: 0.9375rem;
+	height: 0.9375rem;
+}
+.postTweetModal .nt-add {
+	height: auto;
+	justify-content: center;
+	padding: 0.5rem 0.75rem;
+	background: transparent;
+	box-shadow: none;
+	border: 1px dashed var(--background-modifier-border);
+}
+.postTweetModal .nt-add:hover {
+	color: var(--nt-accent);
+	border-color: color-mix(in srgb, var(--nt-accent) 45%, transparent);
+	background: color-mix(in srgb, var(--nt-accent) 6%, transparent);
+}
+.postTweetModal .nt-btn {
+	height: auto;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	padding: 0.4375rem 0.875rem;
+	transition: background-color 0.15s ease, color 0.15s ease, opacity 0.2s ease, transform 0.2s var(--nt-spring);
+}
+.postTweetModal .nt-btn:active:not(:disabled) {
+	transform: scale(0.95);
+}
+.postTweetModal .nt-btn-ghost {
+	background: transparent;
+	box-shadow: none;
+}
+.postTweetModal .nt-btn-ghost:hover:not(:disabled) {
+	background: var(--background-modifier-hover);
+}
+.postTweetModal .nt-btn-cta:not(:disabled) {
+	box-shadow: 0 4px 12px -4px color-mix(in srgb, var(--nt-accent) 60%, transparent);
+}
+.nt-btn .nt-ico {
+	width: 1rem;
+	height: 1rem;
+}
+.nt-footer {
+	transition: none;
+}
+.nt-footer-status:not(:empty) {
+	animation: nt-rise 0.25s var(--nt-ease) both;
+}
+
+/* ---- Preview: the thread as X's timeline shows it ---- */
+.nt-preview {
+	display: none;
+}
+.postTweetModal.is-preview .nt-preview {
+	display: flex;
+	flex-direction: column;
+}
+.postTweetModal.is-preview :is(.nt-thread, .nt-add) {
+	display: none;
+}
+.nt-tw {
+	display: grid;
+	grid-template-columns: 2.5rem 1fr;
+	gap: 0 0.75rem;
+	padding: 0.25rem 0.25rem 0;
+	animation: nt-rise 0.35s var(--nt-ease) both;
+	animation-delay: calc(var(--i) * 55ms);
+}
+.nt-tw-side {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+.nt-tw .nt-avatar {
+	width: 2.5rem;
+	height: 2.5rem;
+	font-size: 1rem;
+}
+.nt-tw:not(:last-child) .nt-tw-side::after {
+	content: "";
+	flex: 1;
+	width: 2px;
+	margin: 0.25rem 0 -0.25rem;
+	border-radius: 1px;
+	background: var(--background-modifier-border);
+	transform-origin: top;
+	animation: nt-grow 0.4s var(--nt-ease) both;
+	animation-delay: calc(var(--i) * 55ms + 120ms);
+}
+.nt-tw-main {
+	min-width: 0;
+	padding-bottom: 0.75rem;
+}
+.nt-tw-meta {
+	display: flex;
+	align-items: baseline;
+	gap: 0.35rem;
+	font-size: var(--font-ui-small);
+	line-height: 1.4;
+}
+.nt-tw-name {
+	font-weight: var(--font-bold);
+	color: var(--text-normal);
+}
+.nt-tw-handle {
+	color: var(--text-faint);
+}
+.nt-tw-index {
+	margin-left: auto;
+	color: var(--text-faint);
+	font-variant-numeric: tabular-nums;
+	font-size: var(--font-ui-smaller);
+}
+.nt-tw-text {
+	margin-top: 0.125rem;
+	font-family: var(--font-text);
+	font-size: 0.975rem;
+	line-height: 1.5;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	color: var(--text-normal);
+}
+.nt-tw-link {
+	color: var(--interactive-accent);
+}
+.nt-tw-media {
+	display: grid;
+	gap: 2px;
+	margin-top: 0.625rem;
+	border-radius: 0.875rem;
+	overflow: hidden;
+	border: 1px solid var(--background-modifier-border);
+	aspect-ratio: 16 / 9;
+	grid-template-columns: 1fr 1fr;
+	grid-template-rows: 1fr 1fr;
+}
+.nt-tw-media img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+	grid-row: span 2;
+}
+.nt-tw-media.is-1 {
+	grid-template-columns: 1fr;
+	aspect-ratio: auto;
+	max-height: 20rem;
+}
+.nt-tw-media.is-1 img {
+	max-height: 20rem;
+}
+.nt-tw-media.is-3 img:not(:first-child),
+.nt-tw-media.is-4 img {
+	grid-row: span 1;
+}
+.nt-tw-actions {
+	display: flex;
+	justify-content: space-between;
+	max-width: 22rem;
+	margin-top: 0.625rem;
+	color: var(--text-faint);
+}
+.nt-tw-act {
+	display: inline-flex;
+	padding: 0.25rem;
+	margin: -0.25rem;
+	border-radius: 50%;
+	cursor: default;
+	transition: color 0.15s ease, background-color 0.15s ease;
+}
+.nt-tw-act:hover {
+	color: var(--interactive-accent);
+	background: color-mix(in srgb, var(--interactive-accent) 10%, transparent);
+}
+.nt-tw-act .nt-ico {
+	width: 1.0625rem;
+	height: 1.0625rem;
+}
+.nt-tw-empty {
+	padding: 2rem 0;
+	text-align: center;
+	color: var(--text-faint);
+}
+
+/* ---- After posting ---- */
+.nt-posted-modal .modal-title {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+.nt-posted-modal .modal-title .nt-ico-check {
+	width: 1.5rem;
+	height: 1.5rem;
+	color: color-mix(in srgb, var(--color-green) 70%, var(--text-muted));
+}
+.nt-posted-item {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.75rem;
+	padding: 0.75rem 0.875rem;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	color: var(--text-normal);
+	text-decoration: none;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	animation: nt-rise 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+	animation-delay: calc(var(--i) * 60ms + 200ms);
+	transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.nt-posted-item:hover {
+	color: var(--text-normal);
+	border-color: var(--background-modifier-border-hover);
+	background: var(--background-modifier-hover);
+	transform: translateY(-1px);
+}
+.nt-posted-text {
+	flex: 1;
+	min-width: 0;
+}
+.nt-posted-item .nt-ico-open {
+	flex: none;
+	width: 1rem;
+	height: 1rem;
+	margin-top: 0.2em;
+	color: var(--text-faint);
+	transition: color 0.15s ease;
+}
+.nt-posted-item:hover .nt-ico-open {
+	color: var(--interactive-accent);
+}
+.tweetContainer {
+	border-radius: var(--radius-m);
+}
+
+/* Posting notice */
+.nt-posting {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+.nt-posting .nt-ico {
+	width: 1rem;
+	height: 1rem;
+	color: var(--interactive-accent);
+}
+
+/* ---- X Premium ---- */
+/* A long post shows its length in the accent color; X folds it after 280 characters */
+.nt-count.is-long {
+	color: var(--nt-accent);
+	font-weight: var(--font-semibold);
+}
+.nt-tw-more {
+	color: var(--interactive-accent);
+	cursor: pointer;
+}
+.nt-tw-more:hover {
+	text-decoration: underline;
+}
+.nt-article-note {
+	margin-top: 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+.nt-article-modal .nt-article-title {
+	width: 100%;
+}
+.nt-posting a {
+	color: var(--text-accent);
+}
+
+/* ---- Icons: a small move when their button is hovered ---- */
+.nt-ico {
+	display: inline-flex;
+	flex: none;
+	width: 1em;
+	height: 1em;
+}
+.nt-ico svg {
+	width: 100%;
+	height: 100%;
+	display: block;
+	overflow: visible;
+}
+.nt-ico svg * {
+	transform-box: view-box;
+	transform-origin: 12px 12px;
+	transition: transform 0.4s var(--nt-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
+}
+:is(button, a, .nt-tw-act):hover:not(:disabled) .nt-ico-arrow-up .nudge-up { transform: translateY(-3px); }
+:is(button, a, .nt-tw-act):hover:not(:disabled) .nt-ico-arrow-down .nudge-down { transform: translateY(3px); }
+:is(button, a, .nt-tw-act):hover:not(:disabled) .nt-ico-trash .lid { transform: translateY(-2.5px) rotate(-6deg); }
+:is(button, a, .nt-tw-act):hover:not(:disabled) .nt-ico-plus .turn { transform: rotate(90deg); }
+:is(button, a, .nt-tw-act):hover:not(:disabled) .nt-ico-x .turn { transform: rotate(90deg); }
+:is(button, a, .nt-tw-act):hover:not(:disabled) .nt-ico-image .sun { transform: translate(1px, -2px); }
+:is(button, a, .nt-tw-act):hover:not(:disabled) .nt-ico-image .hill { transform: translateX(-1.5px); }
+:is(button, a, .nt-tw-act):hover:not(:disabled) .nt-ico-open .nudge-out { transform: translate(2px, -2px); }
+:is(button, a, .nt-tw-act):hover:not(:disabled) .nt-ico-repost .turn { transform: rotate(180deg); }
+.nt-ico-clock .hand { transition-duration: 0.9s; }
+:is(button, a, .nt-tw-act):hover:not(:disabled) .nt-ico-clock .hand { transform: rotate(360deg); }
+:is(button, a, .nt-tw-act):hover:not(:disabled) .nt-ico-send .fly { animation: nt-fly 0.7s ease-in-out; }
+:is(button, a, .nt-tw-act):hover .nt-ico-like .beat { animation: nt-beat 0.6s ease-in-out; }
+:is(button, a, .nt-tw-act):hover .nt-ico-views .bar { transform-origin: 12px 20px; animation: nt-bar 0.5s var(--nt-spring) both; }
+.nt-ico-views .b2 { animation-delay: 0.06s !important; }
+.nt-ico-views .b3 { animation-delay: 0.12s !important; }
+.nt-btn.is-sending .nt-ico-send .fly { animation: nt-fly-away 0.28s ease-in forwards; }
+.nt-ico-check .draw { stroke-dasharray: 1; animation: nt-draw 0.45s ease-out 0.05s both; }
+.nt-ico-check .draw.late { animation-delay: 0.35s; }
+.nt-ico-loader .spin { animation: nt-spin 0.8s linear infinite; }
+
+@keyframes nt-pop { from { opacity: 0; transform: scale(0.6); } }
+@keyframes nt-rise { from { opacity: 0; transform: translateY(8px); } }
+@keyframes nt-grow { from { transform: scaleY(0); } }
+@keyframes nt-spin { to { transform: rotate(360deg); } }
+@keyframes nt-draw { from { stroke-dashoffset: 1; opacity: 0; } 25% { opacity: 1; } to { stroke-dashoffset: 0; opacity: 1; } }
+@keyframes nt-fly { 0%, 100% { transform: none; } 45% { transform: translate(3px, -3px) scale(0.85); opacity: 0.6; } }
+@keyframes nt-fly-away { to { transform: translate(14px, -14px) scale(0.5); opacity: 0; } }
+@keyframes nt-beat { 0%, 100% { transform: none; } 30% { transform: scale(1.2); } 55% { transform: scale(0.95); } }
+@keyframes nt-bar { from { transform: scaleY(0.3); } }
+
+@media (prefers-reduced-motion: reduce) {
+	.postTweetModal *,
+	.nt-posted-modal *,
+	.nt-posting * {
+		animation: none !important;
+		transition: none !important;
+	}
+}

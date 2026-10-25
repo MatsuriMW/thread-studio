@@ -12,8 +12,12 @@ export interface NoteTweetSettings {
 	defaultAccountId: string;
 	/** Tag appended to a note's text after its tweet is posted (empty = off). */
 	postTweetTag: string;
-	/** Split pasted/typed content into multiple tweets at the 280-char limit. */
+	/** Split pasted/typed content into multiple tweets at the post length limit. */
 	autoSplitTweets: boolean;
+	/** The posting accounts have X Premium: a post may run to 25,000 characters. */
+	premiumLongPosts: boolean;
+	/** Play short UI sounds in the composer. */
+	soundEffects: boolean;
 	scheduling: {
 		enabled: boolean;
 		url: string;
@@ -29,6 +33,8 @@ export const DEFAULT_SETTINGS: NoteTweetSettings = {
 	defaultAccountId: "",
 	postTweetTag: "",
 	autoSplitTweets: true,
+	premiumLongPosts: false,
+	soundEffects: true,
 	scheduling: {
 		enabled: false,
 		url: "",
