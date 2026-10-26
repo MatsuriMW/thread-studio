@@ -46,7 +46,7 @@
 		"obsidian-e2e": "0.14.0",
 		"obsidian-test-kit": "0.2.0",
 		"typescript": "6.0.3",
-		"typescript-eslint": "8.71.2",
+		"typescript-eslint": "8.72.0",
 		"vitest": "5.0.5"
 	},
 	"dependencies": {
