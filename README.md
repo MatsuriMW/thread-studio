@@ -17,6 +17,17 @@ Thread Studio is a fork of [NoteTweet](https://github.com/chhoumann/notetweet_ob
 - **X Articles.** *Post note as X Article* turns the active note into an Article: headings, lists, quotes, bold, italic, strikethrough, links, images, code blocks, tables, and dividers carry over. Publish it at once, or save a draft and finish it in X's editor.
 - **A composer with some life in it.** A count ring that fills like X's, cards that slide into place when you add, move, split, or delete posts, icons that move when you point at them, and short, quiet sounds you can switch off. Reduced-motion settings are respected.
 
+**Contents**
+
+- [Installation](#installation)
+- [Setup](#setup)
+- [Usage](#usage)
+- [Network use and accounts](#network-use-and-accounts)
+- [Troubleshooting](#troubleshooting)
+- [Feedback and updates](#feedback-and-updates)
+- [Credits](#credits)
+- [License](#license)
+
 ## Installation
 
 Until Thread Studio is listed in the Obsidian community plugin directory:
