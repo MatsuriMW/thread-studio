@@ -114,6 +114,10 @@ Optional and advanced: posts can go out later through a self-hosted scheduler, w
 
 **An image does not upload.** Use gif, jpg, jpeg, png, webp, or bmp, and make sure the file is in your vault.
 
+## Feedback and updates
+
+To follow new features, send feedback or keep up with progress, follow me on Twitter: [@Matsurimywaifu](https://x.com/Matsurimywaifu).
+
 ## Credits
 
 Thread Studio stands on [NoteTweet](https://github.com/chhoumann/notetweet_obsidian) by [Christian Bager Bach Houmann](https://bagerbach.com/), who wrote the composer, the X API client, Secret Storage handling, and the scheduler, and kindly agreed to this fork. Icons are [Lucide](https://lucide.dev) (ISC), animated in the spirit of [lucide-animated](https://github.com/pqoqubbw/icons); the Preview follows X's own composer and [Typefully](https://typefully.com)'s preview pane.

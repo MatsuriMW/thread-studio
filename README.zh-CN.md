@@ -51,6 +51,10 @@ Thread Studio 改自 Christian Bager Bach Houmann 的 [NoteTweet](https://github
 - 开了定时发帖的话，帖子和调度密码会发到你填的调度服务地址。
 - 凭据存在 Obsidian 的加密 Secret Storage 里，不写进插件的 `data.json`。插件会读取库里的图片用于上传，把发帖标签写回笔记，不碰库外的文件。
 
+## 反馈与后续
+
+想追踪后续功能、反馈问题、关注后续进展，欢迎关注我的 Twitter：[@Matsurimywaifu](https://x.com/Matsurimywaifu)。
+
 ## 致谢
 
 Thread Studio 建立在 [Christian Bager Bach Houmann](https://bagerbach.com/) 的 [NoteTweet](https://github.com/chhoumann/notetweet_obsidian) 之上：撰写框、X API 客户端、Secret Storage 和定时发帖都是他写的，也感谢他同意这个分支。图标是 [Lucide](https://lucide.dev)（ISC 许可），动效参考 [lucide-animated](https://github.com/pqoqubbw/icons)；Preview 参考 X 自己的撰写框和 [Typefully](https://typefully.com) 的预览栏。
